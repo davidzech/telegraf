@@ -46,6 +46,7 @@ func (m *Mri) Init() error {
 }
 
 func (m *Mri) initFtp() (sc *ftp.ServerConn, err error) {
+	fmt.Printf("Connecting to ftp server: %v\n", m.URL)
 	sc, err = ftp.Connect(m.URL)
 	if err != nil {
 		return
@@ -116,6 +117,7 @@ func parseData(data io.Reader) map[string]interface{} {
 			"HDC":         parseInt(fields[26]),
 		}
 	}
+	fmt.Printf("Gathered parsed fields: %v\n", out)
 	return out
 }
 
@@ -138,6 +140,8 @@ func (m *Mri) gatherStats() (map[string]interface{}, error) {
 	// retrieve top file
 
 	latestDat := entries[0]
+
+	fmt.Printf("Parsing last line of file: %v\n", latestDat)
 
 	rsp, err := m.ftpClient.Retr(fmt.Sprintf("/CFDISK/mindata/%s", latestDat))
 	if err != nil {
