@@ -74,6 +74,7 @@ require (
 	github.com/influxdata/wlog v0.0.0-20160411224016-7c63b0a71ef8
 	github.com/jackc/fake v0.0.0-20150926172116-812a484cc733 // indirect
 	github.com/jackc/pgx v3.4.0+incompatible
+	github.com/jlaffaye/ftp v0.0.0-20190522102603-9284a88df536
 	github.com/kardianos/osext v0.0.0-20170510131534-ae77be60afb1 // indirect
 	github.com/kardianos/service v0.0.0-20180320115954-615a14ed7509
 	github.com/karrick/godirwalk v1.7.5
