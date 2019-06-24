@@ -51,16 +51,35 @@ func TestParseData(t *testing.T) {
 
 	out := parseData(f)
 
-	expected := map[string]interface{}{
-		"ColdheadRuO": 4.19,
-		"H20_Flow":    12.98,
-		"H20_Temp":    30.545,
-		"HDC":         21,
-		"HeLvl":       68.344,
-		"HePress":     1.079,
-		"ReconSi410":  3.504,
-		"ReconRuO":    4.215,
-		"Shield":      39.222,
+	expected := []row{
+		row{
+			fields: map[string]interface{}{
+				"ColdheadRuO": 4.24,
+				"H20_Flow":    12.878,
+				"H20_Temp":    30.381,
+				"HDC":         21,
+				"HeLvl":       68.344,
+				"HePress":     1.083,
+				"ReconRuO":    4.215,
+				"ReconSi410":  3.504,
+				"Shield":      39.222,
+			},
+			time: parseDate("310519", "2358", time.Now().Location()),
+		},
+		row{
+			fields: map[string]interface{}{
+				"ColdheadRuO": 4.19,
+				"H20_Flow":    12.98,
+				"H20_Temp":    30.545,
+				"HDC":         21,
+				"HeLvl":       68.344,
+				"HePress":     1.079,
+				"ReconSi410":  3.504,
+				"ReconRuO":    4.215,
+				"Shield":      39.222,
+			},
+			time: parseDate("310519", "2359", time.Now().Location()),
+		},
 	}
 
 	assert.Equal(t, expected, out)
