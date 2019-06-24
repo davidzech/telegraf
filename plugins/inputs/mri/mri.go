@@ -2,15 +2,14 @@ package mri
 
 import (
 	"bufio"
-	"bytes"
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"os"
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/plugins/inputs"
@@ -68,6 +67,17 @@ func (s byDate) Swap(i, j int) {
 	s[i], s[j] = s[j], s[i]
 }
 
+func parseDate(date, t string, loc *time.Location) time.Time {
+	day := parseInt(date[0:2])
+	month := time.Month(parseInt(date[2:4]))
+	year := parseInt(date[4:6]) + 2000
+
+	hour := parseInt(t[0:2])
+	minute := parseInt(t[2:4])
+
+	return time.Date(year, month, day, hour, minute, 0, 0, loc)
+}
+
 func (s byDate) Less(i, j int) bool {
 	// is s[i] less than s[j]
 	lDay, lMonth, lYear := s[i][3:5], s[i][5:7], s[i][7:9]
@@ -98,30 +108,39 @@ func parseFloat(s string) float64 {
 	return f
 }
 
-func parseData(data io.Reader) map[string]interface{} {
+type row struct {
+	fields map[string]interface{}
+	time   time.Time
+}
+
+func parseData(data io.Reader) (out []row) {
 	scanner := bufio.NewScanner(data)
-	var out map[string]interface{}
 	for scanner.Scan() {
 		line := scanner.Text()
 		fields := strings.Fields(line)
 
-		out = map[string]interface{}{
-			"HeLvl":       parseFloat(fields[3]),
-			"H20_Flow":    parseFloat(fields[4]),
-			"H20_Temp":    parseFloat(fields[6]),
-			"Shield":      parseFloat(fields[8]),
-			"ReconRuO":    parseFloat(fields[9]),
-			"ReconSi410":  parseFloat(fields[10]),
-			"ColdheadRuO": parseFloat(fields[13]),
-			"HePress":     parseFloat(fields[14]),
-			"HDC":         parseInt(fields[26]),
-		}
+		out = append(out,
+			row{
+				fields: map[string]interface{}{
+					"HeLvl":       parseFloat(fields[3]),
+					"H20_Flow":    parseFloat(fields[4]),
+					"H20_Temp":    parseFloat(fields[6]),
+					"Shield":      parseFloat(fields[8]),
+					"ReconRuO":    parseFloat(fields[9]),
+					"ReconSi410":  parseFloat(fields[10]),
+					"ColdheadRuO": parseFloat(fields[13]),
+					"HePress":     parseFloat(fields[14]),
+					"HDC":         parseInt(fields[26]),
+				},
+				time: parseDate(fields[0], fields[1], time.Now().Location()),
+			})
 	}
+
 	fmt.Printf("Gathered parsed fields: %v\n", out)
-	return out
+	return
 }
 
-func (m *Mri) gatherStats() (map[string]interface{}, error) {
+func (m *Mri) gatherStats() ([]row, error) {
 	if m.ftpClient == nil {
 		return nil, errors.New("fptClient is nil")
 	}
@@ -150,13 +169,7 @@ func (m *Mri) gatherStats() (map[string]interface{}, error) {
 
 	defer rsp.Close()
 
-	data, err := ioutil.ReadAll(rsp)
-
-	if err != nil {
-		return nil, err
-	}
-
-	return parseData(bytes.NewBuffer(data)), nil
+	return parseData(rsp), nil
 }
 
 func (m *Mri) Gather(acc telegraf.Accumulator) error {
@@ -175,7 +188,10 @@ func (m *Mri) Gather(acc telegraf.Accumulator) error {
 	tags := map[string]string{
 		"name": m.Name,
 	}
-	acc.AddFields("mridata", fields, tags)
+
+	for _, r := range fields {
+		acc.AddFields("mridata", r.fields, tags, r.time)
+	}
 
 	return nil
 }

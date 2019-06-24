@@ -4,6 +4,7 @@ import (
 	"os"
 	"sort"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -63,4 +64,18 @@ func TestParseData(t *testing.T) {
 	}
 
 	assert.Equal(t, expected, out)
+}
+
+func TestParseDate(t *testing.T) {
+	dateStr := "230619"
+	timeStr := "1026"
+
+	location, err := time.LoadLocation("America/Los_Angeles")
+	if err != nil {
+		panic(err)
+	}
+
+	actual := parseDate(dateStr, timeStr, location)
+	expected := time.Unix(1561310760, 0)
+	assert.Equal(t, expected.UTC(), actual.UTC())
 }
