@@ -136,7 +136,7 @@ func parseData(data io.Reader) (out []row) {
 			})
 	}
 
-	fmt.Printf("Gathered parsed fields: %v\n", out)
+	fmt.Printf("Gathered %d parsed fields\n", len(out))
 	return
 }
 
@@ -160,7 +160,7 @@ func (m *Mri) gatherStats() ([]row, error) {
 
 	latestDat := entries[0]
 
-	fmt.Printf("Parsing last line of file: %v\n", latestDat)
+	fmt.Printf("Parsing file: %v\n", latestDat)
 
 	rsp, err := m.ftpClient.Retr(fmt.Sprintf("/CFDISK/mindata/%s", latestDat))
 	if err != nil {
