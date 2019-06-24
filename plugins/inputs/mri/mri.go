@@ -48,11 +48,11 @@ func (m *Mri) initFtp() (sc *ftp.ServerConn, err error) {
 	fmt.Printf("Connecting to ftp server: %v\n", m.URL)
 	sc, err = ftp.Connect(m.URL)
 	if err != nil {
-		return
+		return nil, err
 	}
 	err = sc.Login(m.Username, m.Password)
 	if err != nil {
-		return
+		return nil, err
 	}
 	return
 }
