@@ -173,7 +173,7 @@ func (m *Mri) gatherStats() ([]row, error) {
 }
 
 func (m *Mri) Gather(acc telegraf.Accumulator) error {
-	if m.ftpClient == nil {
+	if m.ftpClient == nil  || m.ftpClient.NoOp() != nil {
 		var err error
 		if m.ftpClient, err = m.initFtp(); err != nil {
 			return err
