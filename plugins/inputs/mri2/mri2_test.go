@@ -1,4 +1,4 @@
-package mri
+package mri2
 
 import (
 	"net/url"

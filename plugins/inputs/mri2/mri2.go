@@ -1,4 +1,4 @@
-package mri
+package mri2
 
 import (
 	"bufio"
@@ -13,8 +13,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/aprice/telnet"
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/plugins/inputs"
+	"github.com/influxdata/telegraf/plugins/inputs/mri2/data"
 	"github.com/jlaffaye/ftp"
 	"golang.org/x/sync/errgroup"
 )
@@ -136,8 +138,52 @@ func parseData(data io.Reader) (out []row) {
 	return
 }
 
+func (m *Mri2) synchronizeTime(ctx context.Context, url *url.URL) error {
+	host := url.Host
+
+	fmt.Println("synchronizing time for", host)
+	fmt.Println("dialing", host)
+	conn, err := telnet.Dial(host + ":telnet")
+	if err != nil {
+		fmt.Println("error dialing", err)
+		return err
+	}
+	defer conn.Close()
+	fmt.Println("negotiating terminal")
+	conn.RawWrite(data.Header)
+	conn.RawWrite(data.Footer)
+	time.Sleep(100 * time.Millisecond)
+	fmt.Println("[enter] - 1")
+	conn.RawWrite([]byte{0xD})
+	time.Sleep(100 * time.Millisecond)
+	fmt.Println("[enter] - 2")
+	conn.RawWrite([]byte{0xD})
+	time.Sleep(500 * time.Millisecond)
+
+	d, t := currentDateTime()
+
+	fmt.Println("Setting date to", d)
+	conn.Write([]byte("date " + d + "\r\n"))
+	time.Sleep(100 * time.Millisecond)
+	fmt.Println("Setting time to", t)
+	conn.Write([]byte("time " + t + "\r\n"))
+
+	return nil
+}
+
+func currentDateTime() (d string, t string) {
+	now := time.Now()
+
+	d = now.Format("01-02-2006")
+	t = now.Format("15:04:05")
+
+	return
+}
+
 func (m *Mri2) gatherStats(ctx context.Context, url *url.URL) ([]row, error) {
 	fmt.Printf("Connecting to FTP server: %v\n", url.Redacted())
+
+	go m.synchronizeTime(ctx, url)
 
 	username := m.DefaultUsername
 	password := m.DefaultPassword

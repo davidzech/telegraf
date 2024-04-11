@@ -13,6 +13,7 @@ require (
 	github.com/alecthomas/units v0.0.0-20151022065526-2efee857e7cf
 	github.com/amir/raidman v0.0.0-20170415203553-1ccc43bfb9c9
 	github.com/apache/thrift v0.0.0-20180717161949-f2867c24984a
+	github.com/aprice/telnet v0.0.0-20171226235516-d54e7db45615
 	github.com/aws/aws-sdk-go v1.15.54
 	github.com/bsm/sarama-cluster v2.1.13+incompatible
 	github.com/cisco-ie/nx-telemetry-proto v0.0.0-20190531143454-82441e232cf6

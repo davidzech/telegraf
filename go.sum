@@ -28,6 +28,8 @@ github.com/amir/raidman v0.0.0-20170415203553-1ccc43bfb9c9/go.mod h1:eliMa/PW+RD
 github.com/apache/thrift v0.0.0-20180717161949-f2867c24984a h1:nMRIlpgSUNrsPPVqnknJjeFrAL6KsPbOF7mZP+8RtGU=
 github.com/apache/thrift v0.0.0-20180717161949-f2867c24984a/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
 github.com/apache/thrift v0.0.0-20180902110319-2566ecd5d999/go.mod h1:cp2SuWMxlEZw2r+iP2GNCdIi4C1qmUzdZFSVb+bacwQ=
+github.com/aprice/telnet v0.0.0-20171226235516-d54e7db45615 h1:wEPxuEzMNfzkbSkOfSYHXs0TiegeQuYjC5/zFb13vII=
+github.com/aprice/telnet v0.0.0-20171226235516-d54e7db45615/go.mod h1:wkBVMCRInB/wrZQqJIY7ri4CY9kz7mdvMDC9wIdbmfc=
 github.com/armon/go-metrics v0.0.0-20180917152333-f0300d1749da/go.mod h1:Q73ZrmVTwzkszR9V5SSuryQ31EELlFMUz1kKyl939pY=
 github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 h1:EFSB7Zo9Eg91v7MJPVsifUysc/wPdN+NOnVe6bWbdBM=
 github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878/go.mod h1:3AMJUQhVx52RsWOnlkpikZr01T/yAVN2gn0861vByNg=
