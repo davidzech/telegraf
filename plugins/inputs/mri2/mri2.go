@@ -18,7 +18,6 @@ import (
 	"github.com/influxdata/telegraf/plugins/inputs"
 	"github.com/influxdata/telegraf/plugins/inputs/mri2/data"
 	"github.com/jlaffaye/ftp"
-	"golang.org/x/sync/errgroup"
 )
 
 type Mri2 struct {
@@ -183,7 +182,9 @@ func currentDateTime() (d string, t string) {
 func (m *Mri2) gatherStats(ctx context.Context, url *url.URL) ([]row, error) {
 	fmt.Printf("Connecting to FTP server: %v\n", url.Redacted())
 
-	go m.synchronizeTime(ctx, url)
+	if err := m.synchronizeTime(ctx, url); err != nil {
+		fmt.Println("failed to synchronize time")
+	}
 
 	username := m.DefaultUsername
 	password := m.DefaultPassword
@@ -241,9 +242,8 @@ func (m *Mri2) Gather(acc telegraf.Accumulator) error {
 
 	ctx := context.Background()
 
-	errgrp, ctx := errgroup.WithContext(ctx)
-
 	for _, machine := range m.Machines {
+		fmt.Printf("===== Gathering stats for %v [%v] =====\n", machine.Name, machine.URL)
 		if !strings.HasPrefix(machine.URL, "ftp://") {
 			machine.URL = "ftp://" + machine.URL
 		}
@@ -253,25 +253,17 @@ func (m *Mri2) Gather(acc telegraf.Accumulator) error {
 			return err
 		}
 
-		errgrp.Go(func() error {
-			rows, err := m.gatherStats(ctx, url)
-			if err != nil {
-				return err
-			}
-			tags := map[string]string{
-				"collectorName": m.CollectorName,
-				"name":          machine.Name,
-			}
-			for _, row := range rows {
-				acc.AddFields("mridata", row.fields, tags)
-			}
-
-			return nil
-		})
-	}
-
-	if err := errgrp.Wait(); err != nil {
-		return err
+		rows, err := m.gatherStats(ctx, url)
+		if err != nil {
+			fmt.Printf("!!! Gathering Stats for %v [%v] failed: %v", machine.Name, machine.URL, err)
+		}
+		tags := map[string]string{
+			"collectorName": m.CollectorName,
+			"name":          machine.Name,
+		}
+		for _, row := range rows {
+			acc.AddFields("mridata", row.fields, tags)
+		}
 	}
 
 	// wait for writing to finish
