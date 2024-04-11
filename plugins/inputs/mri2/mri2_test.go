@@ -18,8 +18,8 @@ func TestConfiguration(t *testing.T) {
 	sampleConfig := `
 CollectorName = "Collector1"
 Machines = [
-	{ Name = "Server1", URL = "ftp://server1.com" }, 
-	{ Name = "Server2", URL = "ftp://overrideUser:overridePassword@server2.com" }
+	{ name = "Server1", url = "ftp://server1.com" }, 
+	{ name = "Server2", url = "ftp://overrideUser:overridePassword@server2.com" }
 ]
 DefaultUsername = "user"
 DefaultPassword = "daki123"

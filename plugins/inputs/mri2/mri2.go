@@ -278,7 +278,7 @@ func (m *Mri2) Gather(acc telegraf.Accumulator) error {
 func init() {
 	var name = ""
 	name, _ = os.Hostname()
-	inputs.Add("mri", func() telegraf.Input {
+	inputs.Add("mri2", func() telegraf.Input {
 		return &Mri2{
 			CollectorName: name,
 		}
