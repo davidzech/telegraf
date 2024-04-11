@@ -139,7 +139,7 @@ func parseData(data io.Reader) (out []row) {
 }
 
 func (m *Mri2) synchronizeTime(ctx context.Context, url *url.URL) error {
-	host := url.Host
+	host := url.Hostname()
 
 	fmt.Println("synchronizing time for", host)
 	fmt.Println("dialing", host)
@@ -244,9 +244,12 @@ func (m *Mri2) Gather(acc telegraf.Accumulator) error {
 	errgrp, ctx := errgroup.WithContext(ctx)
 
 	for _, machine := range m.Machines {
+		if !strings.HasPrefix(machine.URL, "ftp://") {
+			machine.URL = "ftp://" + machine.URL
+		}
 		url, err := url.Parse(machine.URL)
 		if err != nil {
-			fmt.Printf("invalid url")
+			fmt.Printf("invalid url: %v", err)
 			return err
 		}
 
