@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"log"
 	"net/url"
 	"os"
 	"sort"
@@ -15,21 +16,47 @@ import (
 
 	"github.com/aprice/telnet"
 	"github.com/influxdata/telegraf"
+	"github.com/influxdata/telegraf/internal"
 	"github.com/influxdata/telegraf/plugins/inputs"
 	"github.com/influxdata/telegraf/plugins/inputs/mri2/data"
 	"github.com/jlaffaye/ftp"
 )
 
 type Mri2 struct {
-	CollectorName   string
-	Machines        []Machine
-	DefaultUsername string
-	DefaultPassword string
+	CollectorName    string
+	Machines         []Machine
+	DefaultUsername  string
+	DefaultPassword  string
+	SyncTime         bool
+	SyncTimeInterval internal.Duration
+
+	lastSync time.Time
 }
 
 type Machine struct {
 	Name string
 	URL  string
+}
+
+func (m Machine) url() *url.URL {
+	if !strings.HasPrefix(m.URL, "ftp://") {
+		m.URL = "ftp://" + m.URL
+	}
+	url, err := url.Parse(m.URL)
+	if err != nil {
+		return nil
+	}
+
+	u, _ := url.Parse(m.URL)
+	return u
+}
+
+func (m Machine) String() string {
+	var urlString string = m.URL
+	if url := m.url(); url != nil {
+		urlString = url.Redacted()
+	}
+	return fmt.Sprintf("%s;%s", m.Name, urlString)
 }
 
 func (m *Mri2) SampleConfig() string {
@@ -43,6 +70,8 @@ func (m *Mri2) SampleConfig() string {
 ## ]
 ## DefaultUsername = "user"
 ## DefaultPassword = "daki123"
+## SynceTime = true
+## SyncTimeInterval = "12h"
 `
 }
 
@@ -132,39 +161,34 @@ func parseData(data io.Reader) (out []row) {
 				time: parseDate(fields[0], fields[1], time.Now().Location()),
 			})
 	}
-
-	fmt.Printf("Gathered %d parsed fields\n", len(out))
 	return
 }
 
-func (m *Mri2) synchronizeTime(ctx context.Context, url *url.URL) error {
+func (m *Mri2) synchronizeTime(_ context.Context, machine Machine) error {
+	url := machine.url()
 	host := url.Hostname()
 
-	fmt.Println("synchronizing time for", host)
-	fmt.Println("dialing", host)
+	log.Printf("[%s] synchronizing time", machine)
 	conn, err := telnet.Dial(host + ":telnet")
 	if err != nil {
-		fmt.Println("error dialing", err)
+		log.Printf("[%s] error dialing: %v", machine, err)
 		return err
 	}
 	defer conn.Close()
-	fmt.Println("negotiating terminal")
 	conn.RawWrite(data.Header)
 	conn.RawWrite(data.Footer)
 	time.Sleep(100 * time.Millisecond)
-	fmt.Println("[enter] - 1")
 	conn.RawWrite([]byte{0xD})
 	time.Sleep(100 * time.Millisecond)
-	fmt.Println("[enter] - 2")
 	conn.RawWrite([]byte{0xD})
 	time.Sleep(500 * time.Millisecond)
 
 	d, t := currentDateTime()
 
-	fmt.Println("Setting date to", d)
+	log.Printf("[%s] Setting date to: %v", machine, d)
 	conn.Write([]byte("date " + d + "\r\n"))
 	time.Sleep(100 * time.Millisecond)
-	fmt.Println("Setting time to", t)
+	log.Printf("[%s] Setting time to: %v", machine, t)
 	conn.Write([]byte("time " + t + "\r\n"))
 
 	return nil
@@ -179,13 +203,20 @@ func currentDateTime() (d string, t string) {
 	return
 }
 
-func (m *Mri2) gatherStats(ctx context.Context, url *url.URL) ([]row, error) {
-	fmt.Printf("Connecting to FTP server: %v\n", url.Redacted())
+func (m *Mri2) gatherStats(ctx context.Context, machine Machine) ([]row, error) {
+	log.Printf("[%s] Connecting to FTP server", machine)
 
-	if err := m.synchronizeTime(ctx, url); err != nil {
-		fmt.Println("failed to synchronize time")
+	if m.SyncTime {
+		// if last sync + duration < now(), its time to resync
+		if m.lastSync.Add(m.SyncTimeInterval.Duration).Before(time.Now()) {
+			if err := m.synchronizeTime(ctx, machine); err != nil {
+				log.Printf("[%s] Failed to synchronize time: %v", machine, err)
+			}
+		}
+		m.lastSync = time.Now()
 	}
 
+	url := machine.url()
 	username := m.DefaultUsername
 	password := m.DefaultPassword
 
@@ -198,12 +229,12 @@ func (m *Mri2) gatherStats(ctx context.Context, url *url.URL) ([]row, error) {
 
 	ftpClient, err := ftp.Dial(url.Host, ftp.DialWithContext(ctx))
 	if err != nil {
-		fmt.Printf("Failed to connect to FTP server: %v\n", err)
+		fmt.Printf("[%s] Failed to connect to FTP server: %v\n", machine, err)
 		return nil, err
 	}
 
 	if err := ftpClient.Login(username, password); err != nil {
-		fmt.Printf("Failed to login to FTP server, is the username:password correct?: %v\n", err)
+		fmt.Printf("[%s] Failed to login to FTP server, is the username:password correct?: %v\n", machine, err)
 		return nil, err
 	}
 
@@ -211,7 +242,7 @@ func (m *Mri2) gatherStats(ctx context.Context, url *url.URL) ([]row, error) {
 
 	entries, err := ftpClient.NameList("/CFDISK/mindata")
 	if err != nil {
-		fmt.Printf("Failed to list /CFDISK/mindata: %v\n", err)
+		fmt.Printf("[%s] Failed to list /CFDISK/mindata: %v\n", machine, err)
 		return nil, err
 	}
 
@@ -219,14 +250,14 @@ func (m *Mri2) gatherStats(ctx context.Context, url *url.URL) ([]row, error) {
 	sort.Sort(byDate(entries))
 
 	if len(entries) == 0 {
-		fmt.Println("Directory is empty")
+		log.Printf("[%s] Directory is empty", machine)
 		return nil, errors.New("no entries found")
 	}
 
 	// retrieve top file
 	latestDat := entries[0]
 
-	fmt.Printf("Parsing file: %v\n", latestDat)
+	log.Printf("[%s] Parsing file: %v", machine, latestDat)
 
 	rsp, err := ftpClient.Retr(fmt.Sprintf("/CFDISK/mindata/%s", latestDat))
 	if err != nil {
@@ -235,7 +266,9 @@ func (m *Mri2) gatherStats(ctx context.Context, url *url.URL) ([]row, error) {
 
 	defer rsp.Close()
 
-	return parseData(rsp), nil
+	rows := parseData(rsp)
+	log.Printf("[%s] Gathered %d parsed fields", machine, len(rows))
+	return rows, nil
 }
 
 func (m *Mri2) Gather(acc telegraf.Accumulator) error {
@@ -243,17 +276,14 @@ func (m *Mri2) Gather(acc telegraf.Accumulator) error {
 	ctx := context.Background()
 
 	for _, machine := range m.Machines {
-		fmt.Printf("===== Gathering stats for %v [%v] =====\n", machine.Name, machine.URL)
-		if !strings.HasPrefix(machine.URL, "ftp://") {
-			machine.URL = "ftp://" + machine.URL
-		}
-		url, err := url.Parse(machine.URL)
-		if err != nil {
-			fmt.Printf("invalid url: %v", err)
-			return err
+		log.Printf("[%s] Gathering stats", machine)
+
+		if _, err := url.Parse(machine.URL); err != nil {
+			log.Printf("[%s] has invalid url: %v", machine.Name, err)
+			continue
 		}
 
-		rows, err := m.gatherStats(ctx, url)
+		rows, err := m.gatherStats(ctx, machine)
 		if err != nil {
 			fmt.Printf("!!! Gathering Stats for %v [%v] failed: %v", machine.Name, machine.URL, err)
 		}
@@ -275,7 +305,9 @@ func init() {
 	name, _ = os.Hostname()
 	inputs.Add("mri2", func() telegraf.Input {
 		return &Mri2{
-			CollectorName: name,
+			CollectorName:    name,
+			SyncTime:         true,
+			SyncTimeInterval: internal.Duration{Duration: 12 * time.Hour},
 		}
 	})
 }
