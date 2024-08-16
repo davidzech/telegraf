@@ -87,6 +87,7 @@ import (
 	_ "github.com/influxdata/telegraf/plugins/inputs/mqtt_consumer"
 	_ "github.com/influxdata/telegraf/plugins/inputs/mri"
 	_ "github.com/influxdata/telegraf/plugins/inputs/mri2"
+	_ "github.com/influxdata/telegraf/plugins/inputs/mri_espree"
 	_ "github.com/influxdata/telegraf/plugins/inputs/multifile"
 	_ "github.com/influxdata/telegraf/plugins/inputs/mysql"
 	_ "github.com/influxdata/telegraf/plugins/inputs/nats"
