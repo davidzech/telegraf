@@ -11,6 +11,7 @@ import (
 
 	"github.com/influxdata/telegraf"
 	"github.com/influxdata/telegraf/plugins/inputs"
+	"github.com/influxdata/telegraf/plugins/inputs/mri_espree/ansi"
 	"go.bug.st/serial"
 )
 
@@ -40,12 +41,27 @@ func (e *Espree) Gather(acc telegraf.Accumulator) error {
 	}
 	defer port.Close()
 
-	escape(port)
-	enter(port)
-	run(port)
-	enter(port)
+	emulator := ansi.NewEmulator(port)
 
-	row, err := parseData(port)
+	emulator.Escape()
+	time.Sleep(2000 * time.Millisecond)
+
+	emulator.Enter()
+	time.Sleep(2000 * time.Millisecond)
+
+	emulator.Key('r')
+	time.Sleep(2000 * time.Millisecond)
+
+	emulator.Enter()
+	time.Sleep(2000 * time.Millisecond)
+
+	err = emulator.Parse(4000)
+	if err != nil {
+		return err
+	}
+	screen := emulator.LastScreen()
+
+	row, err := parseDataString(screen.String())
 	if err != nil {
 		log.Printf("[%s] Failed to parse data from serial port %q: %v", e.Name, e.Port, err)
 		return err
@@ -63,6 +79,67 @@ func (e *Espree) Gather(acc telegraf.Accumulator) error {
 type row struct {
 	fields map[string]interface{}
 	// time   time.Time
+}
+
+func parseDataString(s string) (*row, error) {
+	out := row{
+		fields: make(map[string]interface{}),
+	}
+	var (
+		heliumLevelExp  = regexp.MustCompile(`Values.+\s+(?P<level1>\d{1,2}\.\d)\%+\s+(?P<level2>\d{1,2}\.\d)\%`)
+		coldHeadTempExp = regexp.MustCompile(`Cold Head\s+Sensor1:(?P<sensor1>\d{1,2}\.\d)K`)
+		shieldTempExp   = regexp.MustCompile(`Shield\s+Sensor1:(?P<sensor1>\d{1,2}\.\d)K\s+Sensor2:(?P<sensor2>\d{1,2}\.\d)K`)
+		magnetPowerExp  = regexp.MustCompile(`Average Power\s+:(?P<power>\d+\.\d+)W`)
+		magnetPsiExp    = regexp.MustCompile(`Mag psiA\s+:(?P<psi>\d+\.\d+)\s+`)
+		compresssorExp  = regexp.MustCompile(`Compressor:\s+(?P<compressor>OFF|ON)`)
+	)
+	heliumLevel := heliumLevelExp.FindStringSubmatch(s)
+	if len(heliumLevel) != 3 {
+		return nil, errors.New("failed to parse Helium Level1")
+	}
+	heliumLevel1, heliumLevel2 := heliumLevel[heliumLevelExp.SubexpIndex("level1")], heliumLevel[heliumLevelExp.SubexpIndex("level2")]
+	out.fields["helium_level1"], _ = strconv.ParseFloat(heliumLevel1, 64)
+	out.fields["helium_level2"], _ = strconv.ParseFloat(heliumLevel2, 64)
+
+	coldHeadTemp := coldHeadTempExp.FindStringSubmatch(s)
+	if len(coldHeadTemp) != 2 {
+		return nil, errors.New("failed to parse Cold Head temperature")
+	}
+	out.fields["coldhead_temperature"], _ = strconv.ParseFloat(coldHeadTemp[coldHeadTempExp.SubexpIndex("sensor1")], 64)
+
+	// only care about sensor 1?
+	shield := shieldTempExp.FindStringSubmatch(s)
+	if len(shield) != 3 {
+		return nil, errors.New("failed to parse shield temperature")
+	}
+	out.fields["shield_temperature"], _ = strconv.ParseFloat(shield[shieldTempExp.SubexpIndex("sensor1")], 64)
+
+	magnetPower := magnetPowerExp.FindStringSubmatch(s)
+	if len(magnetPower) != 2 {
+		return nil, errors.New("failed to parse magnet power")
+	}
+	out.fields["magnet_power"], _ = strconv.ParseFloat(magnetPower[magnetPowerExp.SubexpIndex("power")], 64)
+
+	magnetPsi := magnetPsiExp.FindStringSubmatch(s)
+	if len(magnetPower) != 2 {
+		return nil, errors.New("failed to parse magnet psi")
+	}
+	out.fields["magnet_psi"], _ = strconv.ParseFloat(magnetPsi[magnetPsiExp.SubexpIndex("psi")], 64)
+
+	compressor := compresssorExp.FindStringSubmatch(s)
+	if len(compressor) != 2 {
+		return nil, errors.New("failed to parse compressor status")
+	}
+	switch compressor[compresssorExp.SubexpIndex("compressor")] {
+	case "ON":
+		out.fields["compressor"] = true
+	case "OFF":
+		out.fields["compressor"] = false
+	default:
+		return nil, errors.New("unknown compressor status")
+	}
+
+	return &out, nil
 }
 
 func parseData(r io.Reader) (*row, error) {
@@ -141,21 +218,6 @@ func parseData(r io.Reader) (*row, error) {
 	}
 
 	return &out, nil
-}
-
-func escape(port serial.Port) {
-	port.Write([]byte{27})
-	time.Sleep(2000 * time.Millisecond)
-}
-
-func enter(port serial.Port) {
-	port.Write([]byte{13})
-	time.Sleep(2000 * time.Millisecond)
-}
-
-func run(port serial.Port) {
-	port.Write([]byte{114})
-	time.Sleep(2000 * time.Millisecond)
 }
 
 // SampleConfig implements telegraf.Input.
