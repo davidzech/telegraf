@@ -1,6 +1,7 @@
 package mri_espree
 
 import (
+	"encoding/base64"
 	"errors"
 	"io"
 	"log"
@@ -33,10 +34,13 @@ func (e *Espree) Gather(acc telegraf.Accumulator) error {
 		DataBits: 8,
 		StopBits: serial.OneStopBit,
 	}
+	// log := log.New(os.Stderr, "", log.LstdFlags)
+
+	log.Printf("[%s] Gathering metrics %q\n", e.Name, e.Port)
 
 	port, err := serial.Open(e.Port, mode)
 	if err != nil {
-		log.Printf("[%s] Failed to open serial port %q: %v", e.Name, e.Port, err)
+		log.Printf("[%s] Failed to open serial port %q: %v\n", e.Name, e.Port, err)
 		return err
 	}
 	defer port.Close()
@@ -55,15 +59,17 @@ func (e *Espree) Gather(acc telegraf.Accumulator) error {
 	emulator.Enter()
 	time.Sleep(2000 * time.Millisecond)
 
-	err = emulator.Parse(4000)
+	err = emulator.Parse(6000)
 	if err != nil {
+		log.Printf("[%s] Failed to parse VT Emulator %q: %v\n", e.Name, e.Port, err)
 		return err
 	}
 	screen := emulator.LastScreen()
 
 	row, err := parseDataString(screen.String())
 	if err != nil {
-		log.Printf("[%s] Failed to parse data from serial port %q: %v", e.Name, e.Port, err)
+		log.Printf("[%s] Failed to parse data from serial port %q: %v\n", e.Name, e.Port, err)
+		log.Println(base64.StdEncoding.EncodeToString([]byte(screen.String())))
 		return err
 	}
 
@@ -72,6 +78,8 @@ func (e *Espree) Gather(acc telegraf.Accumulator) error {
 	}
 
 	acc.AddFields("espree", row.fields, tags)
+
+	log.Printf("[%s] Successfully gathered metrics %q: %v %v\n", e.Name, e.Port, row.fields, tags)
 
 	return nil
 }

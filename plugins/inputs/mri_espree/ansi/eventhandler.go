@@ -177,7 +177,8 @@ func (e *Emulator) Execute(b byte) error {
 	case '\r':
 		e.pos.Col = 0
 	default:
-		return fmt.Errorf("unsupported execute seq: %v", b)
+		// return fmt.Errorf("unsupported execute seq: %v", b)
+		// log.Printf("unknown execute seq: %v\n", b)
 	}
 	return nil
 }

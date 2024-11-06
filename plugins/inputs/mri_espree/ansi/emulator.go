@@ -1,8 +1,10 @@
 package ansi
 
 import (
+	"encoding/base64"
 	"errors"
 	"io"
+	"log"
 	"strings"
 
 	ansiterm "github.com/Azure/go-ansiterm"
@@ -100,6 +102,7 @@ func (e *Emulator) Parse(n int) error {
 
 	_, err = e.ansiParser.Parse(buf[:])
 	if err != nil {
+		log.Println(base64.StdEncoding.EncodeToString(buf))
 		return err
 	}
 
