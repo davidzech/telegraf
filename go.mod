@@ -70,7 +70,7 @@ require (
 	golang.org/x/net v0.0.0-20190328230028-74de082e2cca
 	golang.org/x/oauth2 v0.0.0-20180821212333-d2e6202438be
 	golang.org/x/sync v0.0.0-20181221193216-37e7f081c4d4
-	golang.org/x/sys v0.0.0-20190312061237-fead79001313
+	golang.org/x/sys v0.0.0-20220829200755-d48e67d00261
 	google.golang.org/api v0.0.0-20180916000451-19ff8768a5c0
 	google.golang.org/genproto v0.0.0-20180831171423-11092d34479b
 	google.golang.org/grpc v1.14.0
@@ -84,6 +84,7 @@ require (
 require (
 	code.cloudfoundry.org/clock v0.0.0-20180518195852-02e53af36e6c // indirect
 	contrib.go.opencensus.io/exporter/stackdriver v0.6.0 // indirect
+	github.com/Azure/go-ansiterm v0.0.0-20230124172434-306776ec8161 // indirect
 	github.com/Microsoft/go-winio v0.4.9 // indirect
 	github.com/Shopify/toxiproxy v2.1.4+incompatible // indirect
 	github.com/armon/go-metrics v0.0.0-20190430140413-ec5e00d3c878 // indirect
@@ -95,6 +96,7 @@ require (
 	github.com/cockroachdb/apd v1.1.0 // indirect
 	github.com/couchbase/gomemcached v0.0.0-20180502221210-0da75df14530 // indirect
 	github.com/couchbase/goutils v0.0.0-20180530154633-e865a1461c8a // indirect
+	github.com/creack/goselect v0.1.2 // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dimchansky/utfbom v0.0.0-20170328061312-6c6132ff69f0 // indirect
 	github.com/docker/distribution v0.0.0-20170726174610-edc3ab29cdff // indirect
@@ -162,6 +164,7 @@ require (
 	github.com/vishvananda/netns v0.0.0-20180720170159-13995c7128cc // indirect
 	github.com/wvanbergen/kazoo-go v0.0.0-20180202103751-f72d8611297a // indirect
 	github.com/yuin/gopher-lua v0.0.0-20180630135845-46796da1b0b4 // indirect
+	go.bug.st/serial v1.6.2 // indirect
 	go.opencensus.io v0.17.0 // indirect
 	golang.org/x/crypto v0.0.0-20190308221718-c2843e01d9a2 // indirect
 	golang.org/x/text v0.3.1-0.20181227161524-e6919f6577db // indirect
